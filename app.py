@@ -205,24 +205,21 @@ class AplicacionFirma:
                 messagebox.showerror("Error", mensaje)
     
     def colocar_firma(self):
-        """Colocar firma en el visor"""
+        """Entrar en modo placement: sombra sigue al cursor"""
         if not self.ruta_pdf.get():
             messagebox.showwarning("Advertencia", "Primero abre un documento PDF")
             return
         
         if self.viewer.add_firma():
-            self.firma_activa = True
-            self.status_label.config(text="✅ Firma colocada - Arrástrala para posicionarla")
-            self.actualizar_info_firma()
-        else:
-            messagebox.showerror("Error", "No se pudo colocar la firma")
+            self.firma_activa = False  # Aun no esta colocada
+            self.status_label.config(text="Mueve el mouse y haz click para colocar la firma")
     
     def quitar_firma(self):
         """Quitar la firma del visor"""
         self.viewer.remove_firma()
         self.firma_activa = False
         self.status_label.config(text="Firma eliminada")
-        self.pos_label.config(text="📍 Posición: No establecida")
+        self.pos_label.config(text="Posicion: No establecida")
     
     def aplicar_firma(self):
         """Aplicar la firma digital al PDF"""
@@ -278,13 +275,14 @@ class AplicacionFirma:
             self.page_label.config(text=f"Página: {self.viewer.current_page + 1}/{self.viewer.total_pages}")
     
     def actualizar_info_firma(self, event=None):
-        if self.viewer.firma_position:
-            x, y = self.viewer.firma_position
-            self.pos_label.config(text=f"📍 Posición: X={int(x)}, Y={int(y)}")
+        if hasattr(self.viewer, 'firma_page_position') and self.viewer.firma_page_position:
+            x, y = self.viewer.firma_page_position
+            self.pos_label.config(text=f"Pag {self.viewer.current_page + 1} - Pos: X={int(x)}, Y={int(y)}")
     
     def firma_colocada(self, event=None):
         self.firma_activa = True
-        self.status_label.config(text="✅ Firma colocada - Puedes arrastrarla")
+        self.status_label.config(text="Firma colocada - Puedes arrastrarla o firmar")
+        self.actualizar_info_firma()
     
     def firma_eliminada(self, event=None):
         self.firma_activa = False
