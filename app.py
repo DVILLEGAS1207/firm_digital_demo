@@ -1,292 +1,370 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox
 import os
 from datetime import datetime
 from pdf_viewer import PDFViewer
 from firmador import FirmadorPDF
+from modal_certificado import CertificadoModal
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  BOTON DE TOOLBAR CON DROPDOWN
+# ══════════════════════════════════════════════════════════════════════
+
+class ToolbarButton(tk.Frame):
+    """Boton de toolbar con icono PNG arriba y texto debajo"""
+    def __init__(self, parent, icon_file, label, command=None, menu_items=None, **kwargs):
+        super().__init__(parent, bg='#2b2b2b', **kwargs)
+        self.command = command
+        self.menu_items = menu_items
+        self.menu_popup = None
+        
+        # Cargar icono PNG
+        icon_path = os.path.join(os.path.dirname(__file__), "assets", "icons", icon_file)
+        self._icon_normal = None
+        self._icon_hover = None
+        
+        try:
+            from PIL import Image, ImageTk, ImageEnhance
+            img = Image.open(icon_path).convert("RGBA")
+            self._icon_normal = ImageTk.PhotoImage(img)
+            
+            # Version hover (mas clara)
+            img_hover = ImageEnhance.Brightness(img).enhance(1.3)
+            self._icon_hover = ImageTk.PhotoImage(img_hover)
+        except Exception as e:
+            print(f"Error cargando icono {icon_file}: {e}")
+        
+        # PRIMERO el icono (arriba)
+        self.icon_label = tk.Label(self, bg='#2b2b2b', cursor='hand2')
+        if self._icon_normal:
+            self.icon_label.config(image=self._icon_normal)
+        self.icon_label.pack(pady=(6, 2))
+        
+        # DESPUES el texto (debajo)
+        self.label = tk.Label(self, text=label, bg='#2b2b2b', fg='#cccccc',
+                              font=('Segoe UI', 8), cursor='hand2')
+        self.label.pack(pady=(0, 6))
+        
+        # Eventos
+        for w in (self.icon_label, self.label):
+            w.bind("<Button-1>", self._on_click)
+            w.bind("<Button-3>", self._on_right_click)
+            w.bind("<Enter>", self._on_enter)
+            w.bind("<Leave>", self._on_leave)
+    
+    def _on_click(self, event):
+        if self.menu_items:
+            self._show_menu(event)
+        elif self.command:
+            self.command()
+    
+    def _on_right_click(self, event):
+        if self.menu_items:
+            self._show_menu(event)
+    
+    def _show_menu(self, event):
+        if self.menu_popup:
+            self.menu_popup.destroy()
+        
+        self.menu_popup = tk.Menu(self, tearoff=0, bg='#3a3a3a', fg='white',
+                                  activebackground='#41b1e1', activeforeground='white',
+                                  font=('Segoe UI', 9))
+        
+        for texto, cmd in self.menu_items:
+            if texto == "---":
+                self.menu_popup.add_separator()
+            else:
+                self.menu_popup.add_command(label=texto, command=cmd)
+        
+        x = self.winfo_rootx()
+        y = self.winfo_rooty() + self.winfo_height()
+        self.menu_popup.tk_popup(x, y)
+    
+    def _on_enter(self, event):
+        self.icon_label.config(bg='#3d3d3d')
+        self.label.config(fg='white')
+        if self._icon_hover:
+            self.icon_label.config(image=self._icon_hover)
+    
+    def _on_leave(self, event):
+        self.icon_label.config(bg='#2b2b2b')
+        self.label.config(fg='#cccccc')
+        if self._icon_normal:
+            self.icon_label.config(image=self._icon_normal)
+
+
+class SeparadorToolbar(tk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent, bg='#2b2b2b', width=20)
+        self.pack_propagate(False)
+        tk.Canvas(self, width=1, bg='#555555', highlightthickness=0).pack(expand=True, pady=8)
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  APLICACION PRINCIPAL
+# ══════════════════════════════════════════════════════════════════════
 
 class AplicacionFirma:
     def __init__(self, root):
         self.root = root
-        self.root.title("Firma Digital - Demo Profesional")
-        self.root.geometry("1200x750")
+        self.root.title("FIRMA ONPE")
+        self.root.geometry("1300x800")
         self.root.resizable(True, True)
+        self.root.configure(bg='#2b2b2b')
         
-        # Variables
+        # Model
         self.firmador = FirmadorPDF()
         self.ruta_pdf = tk.StringVar()
-        self.nombre_firmante = tk.StringVar(value="VILLEGAS AGUIRRE Delmi Oscar")
-        self.motivo = tk.StringVar(value="Soy el autor del documento")
         self.firma_activa = False
         
-        # Crear interfaz
-        self.crear_menu()
-        self.crear_widgets()
-        
-        # Configurar atajos de teclado
-        self.configurar_atajos()
-        
-    def crear_menu(self):
-        """Crear barra de menú"""
-        menubar = tk.Menu(self.root)
-        self.root.config(menu=menubar)
-        
-        # Menú Archivo
-        file_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Archivo", menu=file_menu)
-        file_menu.add_command(label="Abrir PDF", command=self.abrir_pdf, accelerator="Ctrl+O")
-        file_menu.add_separator()
-        file_menu.add_command(label="Salir", command=self.root.quit)
-        
-        # Menú Firma
-        firmar_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Firma", menu=firmar_menu)
-        firmar_menu.add_command(label="Colocar Firma", command=self.colocar_firma, accelerator="Ctrl+F")
-        firmar_menu.add_command(label="Quitar Firma", command=self.quitar_firma)
-        firmar_menu.add_separator()
-        firmar_menu.add_command(label="Aplicar Firma Digital", command=self.aplicar_firma, accelerator="Ctrl+S")
-        
-        # Menú Ver
-        ver_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Ver", menu=ver_menu)
-        ver_menu.add_command(label="Zoom +", command=self.zoom_in, accelerator="Ctrl++")
-        ver_menu.add_command(label="Zoom -", command=self.zoom_out, accelerator="Ctrl+-")
-        ver_menu.add_command(label="Zoom 100%", command=self.zoom_normal, accelerator="Ctrl+0")
+        self._build_ui()
     
-    def crear_widgets(self):
-        # Panel principal
-        main_pane = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
-        main_pane.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+    def _build_ui(self):
+        # ═══ ICONO Y TITULO DE VENTANA ═══
+        icon_path = os.path.join(os.path.dirname(__file__), "assets", "images", "Icon11.ico")
         
-        # Panel izquierdo - Visor PDF
-        left_frame = ttk.Frame(main_pane)
-        main_pane.add(left_frame, weight=3)
+        # Titulo vacio en title bar nativo (todo va en la barra teal)
+        self.root.title("")
         
-        # Panel derecho - Controles
-        right_frame = ttk.Frame(main_pane, width=380)
-        main_pane.add(right_frame, weight=1)
+        # Icono en title bar (pequeno, para que Windows lo muestre)
+        try:
+            from PIL import Image, ImageTk
+            icon_img = Image.open(icon_path)
+            self._icon_photos = [ImageTk.PhotoImage(icon_img.resize(sz, Image.Resampling.LANCZOS))
+                                 for sz in [(16, 16), (32, 32), (48, 48)]]
+            self.root.iconphoto(True, *self._icon_photos)
+        except Exception as e:
+            print(f"Error cargando icono: {e}")
         
-        # ===== VISOR PDF =====
-        # Barra de herramientas
-        toolbar = ttk.Frame(left_frame)
-        toolbar.pack(fill=tk.X, pady=5)
+        # ═══ BARRA TEAL (icono + titulo + indicadores) ═══
+        top_bar = tk.Frame(self.root, bg='#41b1e1', height=32)
+        top_bar.pack(fill=tk.X)
+        top_bar.pack_propagate(False)
         
-        ttk.Button(toolbar, text="◀", command=self.pagina_anterior, width=3).pack(side=tk.LEFT, padx=2)
-        self.page_label = ttk.Label(toolbar, text="Página: 0/0")
-        self.page_label.pack(side=tk.LEFT, padx=10)
-        ttk.Button(toolbar, text="▶", command=self.pagina_siguiente, width=3).pack(side=tk.LEFT, padx=2)
+        # Icono grande en la barra teal
+        try:
+            icon_grande = icon_img.resize((22, 22), Image.Resampling.LANCZOS)
+            self._icon_teal = ImageTk.PhotoImage(icon_grande)
+            tk.Label(top_bar, image=self._icon_teal, bg='#41b1e1').pack(side=tk.LEFT, padx=(10, 6), pady=5)
+        except:
+            pass
         
-        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, padx=10, fill=tk.Y)
+        # Titulo FIRMA ONPE
+        tk.Label(top_bar, text="FIRMA ONPE", bg='#41b1e1', fg='white',
+                 font=('Segoe UI', 11, 'bold')).pack(side=tk.LEFT, pady=5)
         
-        ttk.Button(toolbar, text="🔍+", command=self.zoom_in, width=3).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="🔍-", command=self.zoom_out, width=3).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="100%", command=self.zoom_normal, width=4).pack(side=tk.LEFT, padx=2)
+        # Indicadores derecha
+        right_top = tk.Frame(top_bar, bg='#41b1e1')
+        right_top.pack(side=tk.RIGHT, padx=10)
         
-        # Área del visor
-        self.viewer = PDFViewer(left_frame, width=750, height=550)
+        for txt in ["\u2714 Estado", "\u2699 Configurar", "\u2302 Acerca de"]:
+            tk.Label(right_top, text=f"  {txt}", bg='#41b1e1', fg="#ffffff",
+                     font=('Segoe UI', 9), cursor='hand2').pack(side=tk.LEFT, padx=3)
+        
+        # ═══ TOOLBAR ═══
+        toolbar = tk.Frame(self.root, bg='#2b2b2b', height=80)
+        toolbar.pack(fill=tk.X)
+        toolbar.pack_propagate(False)
+        
+        # --- Archivo (con submenu) ---
+        ToolbarButton(toolbar, "archivo.png", "Archivo", menu_items=[
+            ("Abrir PDF", self.abrir_pdf),
+            ("---", None),
+            ("Salir", self.root.quit),
+        ]).pack(side=tk.LEFT, padx=2)
+        
+        # --- Firmar (con submenu) ---
+        ToolbarButton(toolbar, "firmar.png", "Firmar", menu_items=[
+            ("Firmar", self.firmar_documento),
+            ("Firma Avanzada", self.colocar_firma),
+        ]).pack(side=tk.LEFT, padx=2)
+        
+        # --- V B (sin accion) ---
+        ToolbarButton(toolbar, "vb.png", "V\u00b0 B\u00b0").pack(side=tk.LEFT, padx=2)
+        
+        SeparadorToolbar(toolbar).pack(side=tk.LEFT, fill=tk.Y, padx=5)
+        
+        # --- Imprimir (sin accion) ---
+        ToolbarButton(toolbar, "imprimir.png", "Imprimir").pack(side=tk.LEFT, padx=2)
+        
+        # --- Verificar (sin accion) ---
+        ToolbarButton(toolbar, "verificar.png", "Verificar").pack(side=tk.LEFT, padx=2)
+        
+        SeparadorToolbar(toolbar).pack(side=tk.LEFT, fill=tk.Y, padx=5)
+        
+        # --- Zoom ---
+        ToolbarButton(toolbar, "zoom_in.png", "Acercar", command=self.zoom_in).pack(side=tk.LEFT, padx=2)
+        ToolbarButton(toolbar, "zoom_out.png", "Alejar", command=self.zoom_out).pack(side=tk.LEFT, padx=2)
+        ToolbarButton(toolbar, "ajustar.png", "Ajustar", command=self.zoom_ajustar).pack(side=tk.LEFT, padx=2)
+        
+        # ═══ VISOR PDF ═══
+        main_frame = tk.Frame(self.root, bg='#585858')
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        self.viewer = PDFViewer(main_frame, width=800, height=600)
         self.viewer.pack(fill=tk.BOTH, expand=True)
         
-        # Eventos del visor
-        self.viewer.bind("<<PageChanged>>", self.actualizar_info_pagina)
-        self.viewer.bind("<<FirmaMoved>>", self.actualizar_info_firma)
-        self.viewer.bind("<<FirmaAdded>>", self.firma_colocada)
-        self.viewer.bind("<<FirmaRemoved>>", self.firma_eliminada)
+        self.viewer.bind("<<PageChanged>>", self._on_page_changed)
+        self.viewer.bind("<<FirmaAdded>>", self._on_firma_added)
+        self.viewer.bind("<<FirmaMoved>>", self._on_firma_moved)
+        self.viewer.bind("<<FirmaRemoved>>", self._on_firma_removed)
         
-        # ===== PANEL DE CONTROLES =====
-        # Título
-        titulo_frame = ttk.Frame(right_frame)
-        titulo_frame.pack(fill=tk.X, pady=10)
+        # ═══ STATUS BAR ═══
+        status = tk.Frame(self.root, bg='#2b2b2b', height=26)
+        status.pack(fill=tk.X)
+        status.pack_propagate(False)
         
-        ttk.Label(titulo_frame, text="📄 CONTROLES DE FIRMA", 
-                 font=('Arial', 12, 'bold')).pack(anchor=tk.W, padx=10)
+        self.status_label = tk.Label(status, text="Listo", bg='#2b2b2b', fg='#aaaaaa',
+                                     font=('Segoe UI', 9), anchor='w')
+        self.status_label.pack(side=tk.LEFT, padx=10, fill=tk.X, expand=True)
         
-        # Sección de archivo
-        archivo_frame = ttk.LabelFrame(right_frame, text="Documento")
-        archivo_frame.pack(fill=tk.X, padx=10, pady=5)
+        self.page_label = tk.Label(status, text="", bg='#2b2b2b', fg='#aaaaaa',
+                                   font=('Segoe UI', 9))
+        self.page_label.pack(side=tk.RIGHT, padx=10)
         
-        file_frame = ttk.Frame(archivo_frame)
-        file_frame.pack(fill=tk.X, padx=5, pady=5)
+        self.pos_label = tk.Label(status, text="", bg='#2b2b2b', fg='#aaaaaa',
+                                  font=('Segoe UI', 9))
+        self.pos_label.pack(side=tk.RIGHT, padx=10)
         
-        self.entry_archivo = ttk.Entry(file_frame, textvariable=self.ruta_pdf)
-        self.entry_archivo.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        ttk.Button(file_frame, text="📂", command=self.abrir_pdf, width=3).pack(side=tk.LEFT, padx=2)
-        
-        # Sección de datos de firma
-        datos_frame = ttk.LabelFrame(right_frame, text="Datos de la Firma")
-        datos_frame.pack(fill=tk.X, padx=10, pady=5)
-        
-        # Firmante
-        ttk.Label(datos_frame, text="Firmante:").pack(anchor=tk.W, padx=10, pady=(5,0))
-        entry_firmante = ttk.Entry(datos_frame, textvariable=self.nombre_firmante)
-        entry_firmante.pack(fill=tk.X, padx=10, pady=2)
-        
-        # Motivo
-        ttk.Label(datos_frame, text="Motivo:").pack(anchor=tk.W, padx=10, pady=(5,0))
-        entry_motivo = ttk.Entry(datos_frame, textvariable=self.motivo)
-        entry_motivo.pack(fill=tk.X, padx=10, pady=2)
-        
-        # Fecha (automática)
-        ttk.Label(datos_frame, text="Fecha:").pack(anchor=tk.W, padx=10, pady=(5,0))
-        self.fecha_label = ttk.Label(datos_frame, text=datetime.now().strftime("%d.%m.%Y %H:%M:%S -05:00"))
-        self.fecha_label.pack(anchor=tk.W, padx=10, pady=2)
-        
-        # Sección de acciones
-        acciones_frame = ttk.LabelFrame(right_frame, text="Acciones")
-        acciones_frame.pack(fill=tk.X, padx=10, pady=5)
-        
-        btn_colocar = ttk.Button(acciones_frame, text="🖊️ Colocar Firma", 
-                                 command=self.colocar_firma)
-        btn_colocar.pack(fill=tk.X, padx=10, pady=2)
-        
-        btn_quitar = ttk.Button(acciones_frame, text="🗑️ Quitar Firma", 
-                                command=self.quitar_firma)
-        btn_quitar.pack(fill=tk.X, padx=10, pady=2)
-        
-        ttk.Separator(acciones_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, padx=10, pady=5)
-        
-        btn_aplicar = ttk.Button(acciones_frame, text="✍️ APLICAR FIRMA DIGITAL", 
-                                 command=self.aplicar_firma, style="Accent.TButton")
-        btn_aplicar.pack(fill=tk.X, padx=10, pady=5)
-        
-        # Estado
-        estado_frame = ttk.LabelFrame(right_frame, text="Estado")
-        estado_frame.pack(fill=tk.X, padx=10, pady=5)
-        
-        self.status_label = ttk.Label(estado_frame, text="🔴 Sin documento", wraplength=340)
-        self.status_label.pack(anchor=tk.W, padx=10, pady=2)
-        
-        self.pos_label = ttk.Label(estado_frame, text="📍 Posición: No establecida", wraplength=340)
-        self.pos_label.pack(anchor=tk.W, padx=10, pady=2)
-        
-        # Información de ayuda
-        help_frame = ttk.LabelFrame(right_frame, text="Ayuda")
-        help_frame.pack(fill=tk.X, padx=10, pady=5)
-        
-        help_text = """💡 Instrucciones:
-1. Abre un documento PDF
-2. Haz clic en "Colocar Firma"
-3. Arrastra la firma a la posición deseada
-4. Haz clic en "Aplicar Firma Digital" """
-        
-        ttk.Label(help_frame, text=help_text, wraplength=340, 
-                 font=('Arial', 8)).pack(anchor=tk.W, padx=10, pady=5)
-        
-        # Estilos
-        style = ttk.Style()
-        style.configure("Accent.TButton", font=('Arial', 10, 'bold'), foreground='blue')
-    
-    def configurar_atajos(self):
-        """Configurar atajos de teclado"""
+        # Atajos
         self.root.bind('<Control-o>', lambda e: self.abrir_pdf())
         self.root.bind('<Control-f>', lambda e: self.colocar_firma())
-        self.root.bind('<Control-s>', lambda e: self.aplicar_firma())
-        self.root.bind('<Control-plus>', lambda e: self.zoom_in())
-        self.root.bind('<Control-minus>', lambda e: self.zoom_out())
-        self.root.bind('<Control-0>', lambda e: self.zoom_normal())
+        self.root.bind('<Control-s>', lambda e: self.firmar_documento())
+    
+    # ══════════════════════════════════════════════════════════════════
+    #  ACCIONES ARCHIVO
+    # ══════════════════════════════════════════════════════════════════
     
     def abrir_pdf(self):
-        """Abrir un archivo PDF"""
         archivo = filedialog.askopenfilename(
             title="Seleccionar archivo PDF",
             filetypes=[("Archivos PDF", "*.pdf"), ("Todos los archivos", "*.*")]
         )
         if archivo:
             self.ruta_pdf.set(archivo)
-            self.status_label.config(text=f"📄 {os.path.basename(archivo)}")
+            self.status_label.config(text="Abriendo...")
             
-            # Cargar en el visor
-            exito, mensaje = self.viewer.load_pdf(archivo)
-            if exito:
-                self.status_label.config(text=f"✅ {mensaje}")
+            ok, msg = self.viewer.load_pdf(archivo)
+            if ok:
+                self.status_label.config(text=f"{msg} - {os.path.basename(archivo)}")
                 self.firmador.abrir_pdf(archivo)
-                self.actualizar_info_pagina()
+                self._update_page_info()
             else:
-                self.status_label.config(text=f"❌ {mensaje}")
-                messagebox.showerror("Error", mensaje)
+                self.status_label.config(text=f"Error: {msg}")
+                messagebox.showerror("Error", msg)
+    
+    # ══════════════════════════════════════════════════════════════════
+    #  ACCIONES FIRMA
+    # ══════════════════════════════════════════════════════════════════
     
     def colocar_firma(self):
         """Entrar en modo placement: sombra sigue al cursor"""
         if not self.ruta_pdf.get():
-            messagebox.showwarning("Advertencia", "Primero abre un documento PDF")
+            messagebox.showwarning("Advertencia", "Primero abra un documento PDF")
             return
         
         if self.viewer.add_firma():
-            self.firma_activa = False  # Aun no esta colocada
-            self.status_label.config(text="Mueve el mouse y haz click para colocar la firma")
+            self.firma_activa = False
+            self.status_label.config(text="Ubique el cursor y haga click para colocar la firma")
     
-    def quitar_firma(self):
-        """Quitar la firma del visor"""
-        self.viewer.remove_firma()
-        self.firma_activa = False
-        self.status_label.config(text="Firma eliminada")
-        self.pos_label.config(text="Posicion: No establecida")
-    
-    def aplicar_firma(self):
-        """Aplicar la firma digital al PDF"""
+    def firmar_documento(self):
+        """Mostrar modal de certificado, y si acepta, generar PDF firmado"""
         if not self.ruta_pdf.get():
-            messagebox.showwarning("Advertencia", "Primero abre un documento PDF")
             return
         
-        if not self.firma_activa:
-            messagebox.showwarning("Advertencia", "Primero coloca la firma en el documento")
+        if not self.viewer.firma_page_position:
+            messagebox.showwarning("Advertencia", "Primero coloque la firma en el documento")
             return
         
+        # Mostrar modal de seleccion de certificado
+        modal = CertificadoModal(self.root)
+        resultado = modal.show()
+        
+        if resultado != "aceptar":
+            self.status_label.config(text="Firma cancelada - Puede reposicionar la firma y volver a Firmar")
+            return
+        
+        # Obtener posicion de la firma
         pos = self.viewer.get_firma_position_for_pdf()
         if not pos:
-            messagebox.showerror("Error", "No se pudo obtener la posición de la firma")
+            messagebox.showerror("Error", "No se pudo obtener la posicion de la firma")
             return
         
-        nombre = self.nombre_firmante.get().strip() or "Usuario"
-        motivo = self.motivo.get().strip() or "Documento firmado digitalmente"
-        fecha = self.fecha_label.cget("text")
+        # Datos del firmante (demo)
+        nombre = "VILLEGAS AGUIRRE Delmi Oscar"
+        motivo = "Soy el autor del documento"
+        fecha = datetime.now().strftime("%d.%m.%Y %H:%M:%S -05:00")
         
-        # Aplicar firma
-        exito, mensaje = self.firmador.firmar_pdf_con_imagen(
-            nombre, motivo, pos, fecha
-        )
+        self.status_label.config(text="Generando documento firmado...")
+        self.root.update()
         
-        if exito:
-            self.status_label.config(text=f"✅ {mensaje}")
-            messagebox.showinfo("Éxito", f"✅ Documento firmado correctamente:\n{mensaje}")
+        ok, msg = self.firmador.firmar_pdf_con_imagen(nombre, motivo, pos, fecha)
+        
+        if ok:
+            self.status_label.config(text=msg)
+            messagebox.showinfo("Exito", f"Documento firmado:\n{msg}")
         else:
-            self.status_label.config(text=f"❌ {mensaje}")
-            messagebox.showerror("Error", mensaje)
+            self.status_label.config(text=f"Error: {msg}")
+            messagebox.showerror("Error", msg)
     
-    def pagina_anterior(self):
-        self.viewer.prev_page()
-    
-    def pagina_siguiente(self):
-        self.viewer.next_page()
+    # ══════════════════════════════════════════════════════════════════
+    #  ZOOM
+    # ══════════════════════════════════════════════════════════════════
     
     def zoom_in(self):
-        self.viewer.zoom *= 1.2
+        self.viewer.zoom *= 1.25
         self.viewer.render_page()
     
     def zoom_out(self):
         self.viewer.zoom *= 0.8
         self.viewer.render_page()
     
-    def zoom_normal(self):
-        self.viewer.zoom = 1.0
+    def zoom_ajustar(self):
+        """Ajustar la pagina para que quepa completa en el visor"""
+        if not self.viewer.doc:
+            return
+        page = self.viewer.doc[self.viewer.current_page]
+        cw = max(self.viewer.canvas.winfo_width(), self.viewer.width)
+        ch = max(self.viewer.canvas.winfo_height(), self.viewer.height)
+        
+        scale_x = cw / page.rect.width
+        scale_y = ch / page.rect.height
+        self.viewer.zoom = min(scale_x, scale_y) * 0.95  # 95% para margen
         self.viewer.render_page()
     
-    def actualizar_info_pagina(self, event=None):
-        if self.viewer.doc:
-            self.page_label.config(text=f"Página: {self.viewer.current_page + 1}/{self.viewer.total_pages}")
+    # ══════════════════════════════════════════════════════════════════
+    #  EVENTOS DEL VISOR
+    # ══════════════════════════════════════════════════════════════════
     
-    def actualizar_info_firma(self, event=None):
-        if hasattr(self.viewer, 'firma_page_position') and self.viewer.firma_page_position:
-            x, y = self.viewer.firma_page_position
-            self.pos_label.config(text=f"Pag {self.viewer.current_page + 1} - Pos: X={int(x)}, Y={int(y)}")
+    def _on_page_changed(self, event=None):
+        self._update_page_info()
     
-    def firma_colocada(self, event=None):
+    def _on_firma_added(self, event=None):
         self.firma_activa = True
-        self.status_label.config(text="Firma colocada - Puedes arrastrarla o firmar")
-        self.actualizar_info_firma()
+        self.status_label.config(text="Firma colocada")
+        self._update_pos_info()
+        # Mostrar modal de certificado automaticamente
+        self.root.after(100, self.firmar_documento)
     
-    def firma_eliminada(self, event=None):
+    def _on_firma_moved(self, event=None):
+        self._update_pos_info()
+    
+    def _on_firma_removed(self, event=None):
         self.firma_activa = False
         self.status_label.config(text="Firma eliminada")
+        self.pos_label.config(text="")
+    
+    def _update_page_info(self):
+        if self.viewer.doc:
+            self.page_label.config(
+                text=f"Pag {self.viewer.current_page + 1}/{self.viewer.total_pages}")
+    
+    def _update_pos_info(self):
+        if self.viewer.firma_page_position:
+            x, y = self.viewer.firma_page_position
+            self.pos_label.config(text=f"X:{int(x)} Y:{int(y)}")
+
 
 if __name__ == "__main__":
     root = tk.Tk()

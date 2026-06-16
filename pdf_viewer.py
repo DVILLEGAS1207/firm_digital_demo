@@ -38,16 +38,20 @@ class PDFViewer(ttk.Frame):
         self._page_offset_y = 0
         
         # ── Canvas ──
-        self.canvas = tk.Canvas(self, width=width, height=height, bg='#808080', cursor='arrow')
+        self.canvas = tk.Canvas(self, width=width, height=height, bg='#585858', cursor='arrow',
+                                highlightthickness=0)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
-        v_scroll = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.canvas.yview)
-        v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
-        h_scroll = ttk.Scrollbar(self, orient=tk.HORIZONTAL, command=self.canvas.xview)
-        h_scroll.pack(side=tk.BOTTOM, fill=tk.X)
-        self.canvas.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
+        # Scrollbars (ocultos por defecto, se muestran solo si hay contenido)
+        self.v_scroll = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.canvas.yview)
+        self.h_scroll = ttk.Scrollbar(self, orient=tk.HORIZONTAL, command=self.canvas.xview)
+        self.canvas.configure(yscrollcommand=self._on_scroll, xscrollcommand=self._on_scroll_h)
         
-        # Eventos del canvas (no de la firma)
+        # Estado de scroll
+        self._v_scroll_visible = False
+        self._h_scroll_visible = False
+        
+        # Eventos del canvas
         self.canvas.bind("<Configure>", self.on_resize)
         self.canvas.bind("<Motion>", self._on_canvas_motion)
         self.canvas.bind("<ButtonPress-1>", self._on_canvas_click)
@@ -59,7 +63,46 @@ class PDFViewer(ttk.Frame):
     #  IMAGEN DE FIRMA
     # ══════════════════════════════════════════════════════════════════
     
+    def _on_scroll(self, *args):
+        """Callback del scrollbar vertical - ocultar/mostrar segun necesidad"""
+        if not self.doc:
+            return
+        
+        # Determinar si se necesita scrollbar
+        needs_scroll = float(args[0]) > 0 or float(args[1]) < 1
+        
+        if needs_scroll and not self._v_scroll_visible:
+            self.v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+            self._v_scroll_visible = True
+        elif not needs_scroll and self._v_scroll_visible:
+            self.v_scroll.pack_forget()
+            self._v_scroll_visible = False
+        
+        # Actualizar posicion del scrollbar
+        self.v_scroll.set(*args)
+    
+    def _on_scroll_h(self, *args):
+        """Callback del scrollbar horizontal"""
+        if not self.doc:
+            return
+        
+        needs_scroll = float(args[0]) > 0 or float(args[1]) < 1
+        
+        if needs_scroll and not self._h_scroll_visible:
+            self.h_scroll.pack(side=tk.BOTTOM, fill=tk.X)
+            self._h_scroll_visible = True
+        elif not needs_scroll and self._h_scroll_visible:
+            self.h_scroll.pack_forget()
+            self._h_scroll_visible = False
+        
+        self.h_scroll.set(*args)
+    
+    # ══════════════════════════════════════════════════════════════════
+    #  IMAGEN DE FIRMA
+    # ══════════════════════════════════════════════════════════════════
+    
     def cargar_imagen_firma(self):
+        """Carga la imagen del sello desde assets"""
         try:
             sello_path = os.path.join(os.path.dirname(__file__), "assets", "images", "sello_small.png")
             if os.path.exists(sello_path):
@@ -155,7 +198,7 @@ class PDFViewer(ttk.Frame):
         self.photo = ImageTk.PhotoImage(img)
         
         self.canvas.delete("all")
-        self.canvas.config(bg='#808080')
+        self.canvas.config(bg='#585858')
         
         cw = max(self.canvas.winfo_width(), self.width)
         ch = max(self.canvas.winfo_height(), self.height)
@@ -166,11 +209,15 @@ class PDFViewer(ttk.Frame):
         
         # Sombra de pagina
         self.canvas.create_rectangle(xo + 4, yo + 4, xo + pix.width + 4, yo + pix.height + 4,
-                                     fill='#404040', outline='')
+                                     fill='#3a3a3a', outline='')
         # Pagina
         self.canvas.create_image(xo, yo, anchor=tk.NW, image=self.photo)
         
-        self.canvas.config(scrollregion=(0, 0, pix.width, pix.height))
+        # Scrollregion = todo el area necesaria (offset + tamanho de pagina)
+        total_w = xo + pix.width + 10
+        total_h = yo + pix.height + 10
+        self.canvas.config(scrollregion=(0, 0, total_w, total_h))
+        
         self.event_generate("<<PageChanged>>")
         
         # Restaurar firma si existia
