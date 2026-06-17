@@ -115,105 +115,47 @@ class ModalFirmaAvanzada:
         y = self.parent.winfo_y() + (self.parent.winfo_height() - 850) // 2
         self.modal.geometry(f"1200x850+{x}+{y}")
 
-        # ═══ BARRA SUPERIOR ═══
-        top_bar = tk.Frame(self.modal, bg='#41b1e1', height=40)
-        top_bar.pack(fill=tk.X)
-        top_bar.pack_propagate(False)
-
-        # Icono y título
-        try:
-            icon_path = os.path.join(os.path.dirname(__file__), "assets", "images", "Icon11.ico")
-            icon_img = Image.open(icon_path).resize((20, 20), Image.Resampling.LANCZOS)
-            self._icon_photo = ImageTk.PhotoImage(icon_img)
-            tk.Label(top_bar, image=self._icon_photo, bg='#41b1e1').pack(side=tk.LEFT, padx=(10, 6), pady=8)
-        except:
-            pass
-
-        tk.Label(top_bar, text="FIRMA PERSONALIZADA", bg='#41b1e1', fg='white',
-                 font=('Segoe UI', 12, 'bold')).pack(side=tk.LEFT, pady=8)
-
-        # Indicador de página
-        self.page_indicator = tk.Label(top_bar, text=f"Página 1/{self.total_pages}",
-                                       bg='#41b1e1', fg='white', font=('Segoe UI', 10))
-        self.page_indicator.pack(side=tk.RIGHT, padx=15)
-
         # ═══ BARRA DE HERRAMIENTAS ═══
-        toolbar = tk.Frame(self.modal, bg='#3a3a3a', height=50)
+        toolbar = tk.Frame(self.modal, bg='#ffffff', height=50)
         toolbar.pack(fill=tk.X)
         toolbar.pack_propagate(False)
 
         # Navegación
-        nav_frame = tk.Frame(toolbar, bg='#3a3a3a')
+        nav_frame = tk.Frame(toolbar, bg='#ffffff')
         nav_frame.pack(side=tk.LEFT, padx=10)
 
-        btn_prev = tk.Button(nav_frame, text="◀ Anterior", command=self._prev_page,
-                             bg='#4a4a4a', fg='white', font=('Segoe UI', 9),
+        btn_prev = tk.Button(nav_frame, text="|◀◀", command=self._prev_page,
+                             bg="#dbdbdb", fg='black', font=('Segoe UI', 9),
                              relief=tk.FLAT, padx=10, pady=4)
         btn_prev.pack(side=tk.LEFT, padx=2)
 
-        btn_next = tk.Button(nav_frame, text="Siguiente ▶", command=self._next_page,
-                             bg='#4a4a4a', fg='white', font=('Segoe UI', 9),
+        btn_next = tk.Button(nav_frame, text="▶▶|", command=self._next_page,
+                             bg="#dbdbdb", fg='black', font=('Segoe UI', 9),
                              relief=tk.FLAT, padx=10, pady=4)
         btn_next.pack(side=tk.LEFT, padx=2)
 
         # Ir a página
-        tk.Label(nav_frame, text="Ir a:", bg='#3a3a3a', fg='white',
+        tk.Label(nav_frame, text="Ir a:", bg='#ffffff', fg='black',
                  font=('Segoe UI', 9)).pack(side=tk.LEFT, padx=(15, 5))
         self.page_entry = tk.Entry(nav_frame, width=5, font=('Segoe UI', 9))
         self.page_entry.pack(side=tk.LEFT)
         self.page_entry.bind("<Return>", self._goto_page)
 
         btn_go = tk.Button(nav_frame, text="Ir", command=self._goto_page,
-                           bg='#4a4a4a', fg='white', font=('Segoe UI', 9),
+                           bg='#ffffff', fg='black', font=('Segoe UI', 9),
                            relief=tk.FLAT, padx=6, pady=4)
         btn_go.pack(side=tk.LEFT, padx=2)
 
-        # Separador
-        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=5)
-
-        # Zoom
-        zoom_frame = tk.Frame(toolbar, bg='#3a3a3a')
-        zoom_frame.pack(side=tk.LEFT, padx=5)
-
-        btn_zoom_out = tk.Button(zoom_frame, text="🔍-", command=self._zoom_out,
-                                 bg='#4a4a4a', fg='white', font=('Segoe UI', 9),
-                                 relief=tk.FLAT, padx=6, pady=4)
-        btn_zoom_out.pack(side=tk.LEFT, padx=2)
-
-        self.zoom_label = tk.Label(zoom_frame, text="100%", bg='#3a3a3a', fg='white',
-                                   font=('Segoe UI', 9))
-        self.zoom_label.pack(side=tk.LEFT, padx=5)
-
-        btn_zoom_in = tk.Button(zoom_frame, text="🔍+", command=self._zoom_in,
-                                bg='#4a4a4a', fg='white', font=('Segoe UI', 9),
-                                relief=tk.FLAT, padx=6, pady=4)
-        btn_zoom_in.pack(side=tk.LEFT, padx=2)
-
-        btn_zoom_fit = tk.Button(zoom_frame, text="Ajustar", command=self._zoom_fit,
-                                 bg='#4a4a4a', fg='white', font=('Segoe UI', 9),
-                                 relief=tk.FLAT, padx=6, pady=4)
-        btn_zoom_fit.pack(side=tk.LEFT, padx=2)
-
-        # Separador
-        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=5)
-
-        # Botón colocar firma
-        btn_firma = tk.Button(toolbar, text="📌 Colocar Firma", command=self._iniciar_placement,
-                              bg='#27ae60', fg='white', font=('Segoe UI', 10, 'bold'),
-                              relief=tk.FLAT, padx=15, pady=5)
-        btn_firma.pack(side=tk.LEFT, padx=5)
-
-        # Botón quitar firma
-        btn_quitar = tk.Button(toolbar, text="❌ Quitar Firma", command=self._quitar_firma,
-                               bg='#c0392b', fg='white', font=('Segoe UI', 10, 'bold'),
-                               relief=tk.FLAT, padx=15, pady=5)
-        btn_quitar.pack(side=tk.LEFT, padx=5)
+        # Indicador de página
+        self.page_indicator = tk.Label(nav_frame, text=f"Número de Página 1/{self.total_pages}",
+                                       bg='#ffffff', fg='black', font=('Segoe UI', 9))
+        self.page_indicator.pack(side=tk.LEFT, padx=(15, 0))
 
         # ═══ ÁREA DEL CANVAS ═══
-        canvas_frame = tk.Frame(self.modal, bg='#585858')
+        canvas_frame = tk.Frame(self.modal, bg='#c9d3e2')
         canvas_frame.pack(fill=tk.BOTH, expand=True)
 
-        self.canvas = tk.Canvas(canvas_frame, bg='#585858', cursor='arrow',
+        self.canvas = tk.Canvas(canvas_frame, bg='#c9d3e2', cursor='arrow',
                                 highlightthickness=0)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
@@ -229,48 +171,10 @@ class ModalFirmaAvanzada:
         self.canvas.bind("<Motion>", self._on_canvas_motion)
         self.canvas.bind("<ButtonPress-1>", self._on_canvas_click)
 
-        # ═══ LISTA DE FIRMAS ═══
-        firmas_frame = tk.Frame(self.modal, bg='#3a3a3a', height=120)
-        firmas_frame.pack(fill=tk.X)
-        firmas_frame.pack_propagate(False)
-
-        tk.Label(firmas_frame, text="Firmas colocadas:", bg='#3a3a3a', fg='white',
-                 font=('Segoe UI', 10, 'bold')).pack(anchor='w', padx=10, pady=(5, 0))
-
-        # Treeview para firmas
-        columns = ("pagina", "posicion", "fecha")
-        self.firmas_tree = ttk.Treeview(firmas_frame, columns=columns, show='headings', height=4)
-        self.firmas_tree.heading("pagina", text="Página")
-        self.firmas_tree.heading("posicion", text="Posición (X, Y)")
-        self.firmas_tree.heading("fecha", text="Fecha/Hora")
-        self.firmas_tree.column("pagina", width=80, anchor='center')
-        self.firmas_tree.column("posicion", width=150, anchor='center')
-        self.firmas_tree.column("fecha", width=200, anchor='center')
-        self.firmas_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=5)
-
-        # Scrollbar del treeview
-        tree_scroll = ttk.Scrollbar(firmas_frame, orient=tk.VERTICAL, command=self.firmas_tree.yview)
-        self.firmas_tree.configure(yscrollcommand=tree_scroll.set)
-        tree_scroll.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 10), pady=5)
-
         # ═══ BARRA INFERIOR ═══
         bottom_bar = tk.Frame(self.modal, bg='#2b2b2b', height=50)
         bottom_bar.pack(fill=tk.X)
         bottom_bar.pack_propagate(False)
-
-        # Botones de acción
-        btn_frame = tk.Frame(bottom_bar, bg='#2b2b2b')
-        btn_frame.pack(side=tk.RIGHT, padx=10, pady=8)
-
-        btn_cancelar = tk.Button(btn_frame, text="Cancelar", command=self._cancelar,
-                                 bg='#7f8c8d', fg='white', font=('Segoe UI', 10),
-                                 relief=tk.FLAT, padx=20, pady=5)
-        btn_cancelar.pack(side=tk.LEFT, padx=5)
-
-        btn_firmar = tk.Button(btn_frame, text="✓ Firmar Documento", command=self._firmar,
-                               bg='#27ae60', fg='white', font=('Segoe UI', 10, 'bold'),
-                               relief=tk.FLAT, padx=20, pady=5)
-        btn_firmar.pack(side=tk.LEFT, padx=5)
 
         # Info
         self.info_label = tk.Label(bottom_bar, text="Seleccione posición y haga clic para colocar la firma",
@@ -319,27 +223,6 @@ class ModalFirmaAvanzada:
             pass
 
     # ══════════════════════════════════════════════════════════════════
-    #  ZOOM
-    # ══════════════════════════════════════════════════════════════════
-
-    def _zoom_in(self):
-        self.zoom *= 1.25
-        self._render_page()
-
-    def _zoom_out(self):
-        self.zoom *= 0.8
-        self._render_page()
-
-    def _zoom_fit(self):
-        page = self.doc[self.current_page]
-        cw = max(self.canvas.winfo_width(), 800)
-        ch = max(self.canvas.winfo_height(), 600)
-        scale_x = cw / page.rect.width
-        scale_y = ch / page.rect.height
-        self.zoom = min(scale_x, scale_y) * 0.95
-        self._render_page()
-
-    # ══════════════════════════════════════════════════════════════════
     #  RENDERIZADO
     # ══════════════════════════════════════════════════════════════════
 
@@ -355,7 +238,7 @@ class ModalFirmaAvanzada:
         self.photo = ImageTk.PhotoImage(img)
 
         self.canvas.delete("all")
-        self.canvas.config(bg='#585858')
+        self.canvas.config(bg='#c9d3e2')
 
         cw = max(self.canvas.winfo_width(), 800)
         ch = max(self.canvas.winfo_height(), 600)
@@ -366,7 +249,7 @@ class ModalFirmaAvanzada:
 
         # Sombra de página
         self.canvas.create_rectangle(xo + 4, yo + 4, xo + pix.width + 4, yo + pix.height + 4,
-                                     fill='#3a3a3a', outline='')
+                                     fill='#ffffff', outline='')
         # Página
         self.canvas.create_image(xo, yo, anchor=tk.NW, image=self.photo)
 
@@ -377,7 +260,6 @@ class ModalFirmaAvanzada:
 
         # Actualizar indicadores
         self.page_indicator.config(text=f"Página {self.current_page + 1}/{self.total_pages}")
-        self.zoom_label.config(text=f"{int(self.zoom * 100)}%")
         self.page_entry.delete(0, tk.END)
         self.page_entry.insert(0, str(self.current_page + 1))
 
@@ -420,10 +302,6 @@ class ModalFirmaAvanzada:
         """Entrar en modo placement: sombra sigue al cursor"""
         if not self.doc:
             return
-
-        # Si ya hay firma colocada, quitarla primero
-        if self.firma_item:
-            self._quitar_firma()
 
         self.placement_mode = True
         self.canvas.config(cursor='crosshair')
@@ -539,12 +417,6 @@ class ModalFirmaAvanzada:
                 })
 
                 # Actualizar treeview
-                self.firmas_tree.insert("", tk.END, values=(
-                    f"{self.current_page + 1}",
-                    f"({int(pdf_x)}, {int(pdf_y)})",
-                    fecha
-                ))
-
                 self.info_label.config(text=f"Firma colocada en página {self.current_page + 1}")
 
                 # Mostrar modal de confirmación automáticamente
@@ -562,10 +434,6 @@ class ModalFirmaAvanzada:
             # Si cancela, quitar la última firma
             if self.firmas_colocadas:
                 self.firmas_colocadas.pop()
-                # Actualizar treeview
-                items = self.firmas_tree.get_children()
-                if items:
-                    self.firmas_tree.delete(items[-1])
                 # Quitar firma del canvas
                 if self.firma_item:
                     self.canvas.delete(self.firma_item)
@@ -635,42 +503,6 @@ class ModalFirmaAvanzada:
     # ══════════════════════════════════════════════════════════════════
     #  ACCIONES
     # ══════════════════════════════════════════════════════════════════
-
-    def _quitar_firma(self):
-        """Elimina la firma actual"""
-        self.placement_mode = False
-        self._hide_shadow()
-        self.canvas.config(cursor='arrow')
-        if self.firma_item:
-            self.canvas.delete(self.firma_item)
-            self.firma_item = None
-            self.firma_position = None
-            self.firma_page_position = None
-            self.info_label.config(text="Firma eliminada")
-
-    def _cancelar(self):
-        """Cancelar y cerrar modal"""
-        self.resultado = None
-        self.modal.destroy()
-
-    def _firmar(self):
-        """Firmar el documento con todas las firmas colocadas"""
-        if not self.firmas_colocadas:
-            messagebox.showwarning("Advertencia", "No hay firmas colocadas", parent=self.modal)
-            return
-
-        # Preparar datos para el firmador
-        self.resultado = []
-        for firma in self.firmas_colocadas:
-            self.resultado.append({
-                "pagina": firma["pagina"],
-                "posicion": firma["posicion"],
-                "fecha": firma["fecha"]
-            })
-
-        # Cerrar modal
-        self.modal.event_generate("<<FirmaAvanzadaComplete>>")
-        self.modal.destroy()
 
     def _on_resize(self, event):
         self._render_page()
