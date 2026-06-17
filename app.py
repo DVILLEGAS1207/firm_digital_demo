@@ -289,7 +289,7 @@ class AplicacionFirma:
             return
         
         # Datos del firmante (demo)
-        nombre = "VILLEGAS AGUIRRE Delmi Oscar"
+        nombre = "JUEZ DE PAZ UDAJUP Csj Junín"
         motivo = "Soy el autor del documento"
         
         self.status_label.config(text="Generando documento firmado...")
@@ -370,7 +370,7 @@ class AplicacionFirma:
         x, y, w, h, page_idx = pos
         
         # Datos del firmante (demo)
-        nombre = "VILLEGAS AGUIRRE Delmi Oscar"
+        nombre = "JUEZ DE PAZ UDAJUP Csj Junín"
         motivo = "Soy el autor del documento"
         fecha = datetime.now().strftime("%d.%m.%Y %H:%M:%S -05:00")
         

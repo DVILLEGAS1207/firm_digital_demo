@@ -40,7 +40,7 @@ def crear_sello_base():
     y_offset = 20
     draw.line([text_x - 15, 15, text_x - 15, 125], fill=(180, 180, 180), width=1)
     
-    nombre_firmante = "VILLEGAS AGUIRRE Delmi Oscar"
+    nombre_firmante = "JUEZ DE PAZ UDAJUP Csj Junín"
     fecha = "16.06.2026 13:03:21 -05:00"
     
     draw.text((text_x, y_offset), "Firmado digitalmente por", fill=(100, 100, 100), font=font_normal)

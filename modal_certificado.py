@@ -10,7 +10,7 @@ ICON_DIR = os.path.join(os.path.dirname(__file__), "assets", "icons")
 class CertificadoModal(tk.Toplevel):
     """Modal de seleccion de certificado estilo ONPE"""
     
-    def __init__(self, parent, nombre_firmante="VILLEGAS AGUIRRE Delmi Oscar",
+    def __init__(self, parent, nombre_firmante="JUEZ DE PAZ UDAJUP Csj Junín",
                  dni="FAU 20568198272 soft"):
         super().__init__(parent)
         self.resultado = None

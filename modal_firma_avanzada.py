@@ -88,7 +88,7 @@ class ModalFirmaAvanzada:
         tx = 280
         draw.line([tx - 15, 15, tx - 15, 125], fill=(180, 180, 180), width=1)
         draw.text((tx, 20), "Firmado digitalmente por", fill=(100, 100, 100), font=fn)
-        draw.text((tx, 38), "VILLEGAS AGUIRRE Delmi Oscar", fill=(50, 50, 50), font=fb)
+        draw.text((tx, 38), "JUEZ DE PAZ UDAJUP Csj Junín", fill=(50, 50, 50), font=fb)
         draw.text((tx, 58), "FAU 20568198272 soft", fill=(100, 100, 100), font=fn)
         draw.text((tx, 76), "Motivo: Soy el autor del documento", fill=(100, 100, 100), font=fn)
         draw.text((tx, 94), "Fecha: 16.06.2026 13:03:21 -05:00", fill=(100, 100, 100), font=fn)
