@@ -103,7 +103,7 @@ class ModalFirmaAvanzada:
         """Crear la ventana modal"""
         self.modal = tk.Toplevel(self.parent)
         self.modal.title("FIRMA PERSONALIZADA - Seleccione posición")
-        self.modal.geometry("1200x850")
+        self.modal.geometry("520x850")
         self.modal.resizable(True, True)
         self.modal.configure(bg='#2b2b2b')
         self.modal.transient(self.parent)
@@ -111,33 +111,34 @@ class ModalFirmaAvanzada:
 
         # Centrar相对于父窗口
         self.modal.update_idletasks()
-        x = self.parent.winfo_x() + (self.parent.winfo_width() - 1200) // 2
+        x = self.parent.winfo_x() + (self.parent.winfo_width() - 520) // 2
         y = self.parent.winfo_y() + (self.parent.winfo_height() - 850) // 2
-        self.modal.geometry(f"1200x850+{x}+{y}")
+        self.modal.geometry(f"520x850+{x}+{y}")
 
         # ═══ BARRA DE HERRAMIENTAS ═══
         toolbar = tk.Frame(self.modal, bg='#ffffff', height=50)
         toolbar.pack(fill=tk.X)
         toolbar.pack_propagate(False)
 
-        # Navegación
+        # Contenedor centrado
         nav_frame = tk.Frame(toolbar, bg='#ffffff')
-        nav_frame.pack(side=tk.LEFT, padx=10)
+        nav_frame.pack(expand=True)
 
-        btn_prev = tk.Button(nav_frame, text="|◀◀", command=self._prev_page,
-                             bg="#dbdbdb", fg='black', font=('Segoe UI', 9),
-                             relief=tk.FLAT, padx=10, pady=4)
+        # Navegación
+        btn_prev = tk.Button(nav_frame, text="◀", command=self._prev_page,
+                             bg="#dbdbdb", fg='black', font=('Segoe UI', 10),
+                             relief=tk.FLAT, padx=8, pady=4)
         btn_prev.pack(side=tk.LEFT, padx=2)
 
-        btn_next = tk.Button(nav_frame, text="▶▶|", command=self._next_page,
-                             bg="#dbdbdb", fg='black', font=('Segoe UI', 9),
-                             relief=tk.FLAT, padx=10, pady=4)
+        btn_next = tk.Button(nav_frame, text="▶", command=self._next_page,
+                             bg="#dbdbdb", fg='black', font=('Segoe UI', 10),
+                             relief=tk.FLAT, padx=8, pady=4)
         btn_next.pack(side=tk.LEFT, padx=2)
 
         # Ir a página
         tk.Label(nav_frame, text="Ir a:", bg='#ffffff', fg='black',
-                 font=('Segoe UI', 9)).pack(side=tk.LEFT, padx=(15, 5))
-        self.page_entry = tk.Entry(nav_frame, width=5, font=('Segoe UI', 9))
+                 font=('Segoe UI', 9)).pack(side=tk.LEFT, padx=(10, 3))
+        self.page_entry = tk.Entry(nav_frame, width=4, font=('Segoe UI', 9))
         self.page_entry.pack(side=tk.LEFT)
         self.page_entry.bind("<Return>", self._goto_page)
 
@@ -147,9 +148,9 @@ class ModalFirmaAvanzada:
         btn_go.pack(side=tk.LEFT, padx=2)
 
         # Indicador de página
-        self.page_indicator = tk.Label(nav_frame, text=f"Número de Página 1/{self.total_pages}",
+        self.page_indicator = tk.Label(nav_frame, text=f"Pág. 1/{self.total_pages}",
                                        bg='#ffffff', fg='black', font=('Segoe UI', 9))
-        self.page_indicator.pack(side=tk.LEFT, padx=(15, 0))
+        self.page_indicator.pack(side=tk.LEFT, padx=(10, 0))
 
         # ═══ ÁREA DEL CANVAS ═══
         canvas_frame = tk.Frame(self.modal, bg='#c9d3e2')
@@ -159,12 +160,10 @@ class ModalFirmaAvanzada:
                                 highlightthickness=0)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        # Scrollbars
+        # Scrollbar vertical
         v_scroll = ttk.Scrollbar(canvas_frame, orient=tk.VERTICAL, command=self.canvas.yview)
-        h_scroll = ttk.Scrollbar(canvas_frame, orient=tk.HORIZONTAL, command=self.canvas.xview)
-        self.canvas.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
+        self.canvas.configure(yscrollcommand=v_scroll.set)
         v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
-        h_scroll.pack(side=tk.BOTTOM, fill=tk.X)
 
         # Eventos del canvas
         self.canvas.bind("<Configure>", self._on_resize)
@@ -189,8 +188,10 @@ class ModalFirmaAvanzada:
         # Calcular zoom para ajustar la página
         if self.doc:
             page = self.doc[self.current_page]
-            cw = max(self.canvas.winfo_width(), 800)
-            ch = max(self.canvas.winfo_height(), 600)
+            cw = self.canvas.winfo_width()
+            ch = self.canvas.winfo_height()
+            if cw < 10 or ch < 10:
+                cw, ch = 480, 700
             scale_x = cw / page.rect.width
             scale_y = ch / page.rect.height
             self.zoom = min(scale_x, scale_y) * 0.95
@@ -240,8 +241,8 @@ class ModalFirmaAvanzada:
         self.canvas.delete("all")
         self.canvas.config(bg='#c9d3e2')
 
-        cw = max(self.canvas.winfo_width(), 800)
-        ch = max(self.canvas.winfo_height(), 600)
+        cw = self.canvas.winfo_width()
+        ch = self.canvas.winfo_height()
         xo = max(0, (cw - pix.width) // 2)
         yo = max(0, (ch - pix.height) // 2)
         self._page_offset_x = xo
@@ -253,10 +254,9 @@ class ModalFirmaAvanzada:
         # Página
         self.canvas.create_image(xo, yo, anchor=tk.NW, image=self.photo)
 
-        # Scrollregion
-        total_w = xo + pix.width + 10
+        # Scrollregion (solo vertical)
         total_h = yo + pix.height + 10
-        self.canvas.config(scrollregion=(0, 0, total_w, total_h))
+        self.canvas.config(scrollregion=(0, 0, cw, total_h))
 
         # Actualizar indicadores
         self.page_indicator.config(text=f"Página {self.current_page + 1}/{self.total_pages}")
