@@ -125,12 +125,12 @@ class ModalFirmaAvanzada:
         nav_frame.pack(expand=True)
 
         # Navegación
-        btn_prev = tk.Button(nav_frame, text="◀", command=self._prev_page,
+        btn_prev = tk.Button(nav_frame, text="|◀◀", command=self._prev_page,
                              bg="#dbdbdb", fg='black', font=('Segoe UI', 10),
                              relief=tk.FLAT, padx=8, pady=4)
         btn_prev.pack(side=tk.LEFT, padx=2)
 
-        btn_next = tk.Button(nav_frame, text="▶", command=self._next_page,
+        btn_next = tk.Button(nav_frame, text="▶▶|", command=self._next_page,
                              bg="#dbdbdb", fg='black', font=('Segoe UI', 10),
                              relief=tk.FLAT, padx=8, pady=4)
         btn_next.pack(side=tk.LEFT, padx=2)
