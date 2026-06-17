@@ -172,6 +172,17 @@ class FirmadorPDF:
             # Detectar si la página tiene transformación Y-invertida (común en DOCX→PDF)
             y_flip = self._detect_y_flip()
             
+            # Si hay Y-flip, rotar la imagen 180° para que quede orientada correctamente
+            if y_flip > 0:
+                import io
+                from PIL import Image
+                img = Image.open(io.BytesIO(img_data))
+                img = img.rotate(180)
+                img = img.transpose(Image.FLIP_LEFT_RIGHT)
+                buf = io.BytesIO()
+                img.save(buf, format='PNG')
+                img_data = buf.getvalue()
+            
             # Insertar firma en cada página especificada
             for firma in firmas:
                 pagina_num = firma["pagina"]
