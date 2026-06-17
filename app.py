@@ -5,6 +5,7 @@ from datetime import datetime
 from pdf_viewer import PDFViewer
 from firmador import FirmadorPDF
 from modal_certificado import CertificadoModal
+from modal_firma_avanzada import ModalFirmaAvanzada
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -177,7 +178,7 @@ class AplicacionFirma:
         # --- Firmar (con submenu) ---
         ToolbarButton(toolbar, "firmar.png", "Firmar", menu_items=[
             ("Firmar", self.firmar_documento),
-            ("Firma Avanzada", self.colocar_firma),
+            ("Firma Avanzada", self.firma_avanzada),
         ]).pack(side=tk.LEFT, padx=2)
         
         # --- V B (sin accion) ---
@@ -229,7 +230,7 @@ class AplicacionFirma:
         
         # Atajos
         self.root.bind('<Control-o>', lambda e: self.abrir_pdf())
-        self.root.bind('<Control-f>', lambda e: self.colocar_firma())
+        self.root.bind('<Control-f>', lambda e: self.firma_avanzada())
         self.root.bind('<Control-s>', lambda e: self.firmar_documento())
     
     # ══════════════════════════════════════════════════════════════════
@@ -268,6 +269,81 @@ class AplicacionFirma:
             self.firma_activa = False
             self.status_label.config(text="Ubique el cursor y haga click para colocar la firma")
     
+    def firma_avanzada(self):
+        """Abrir modal de firma avanzada con navegación multipágina"""
+        if not self.ruta_pdf.get():
+            messagebox.showwarning("Advertencia", "Primero abra un documento PDF")
+            return
+        
+        # Abrir modal de firma avanzada
+        modal = ModalFirmaAvanzada(self.root, self.ruta_pdf.get(), self.firmador)
+        resultado = modal.show()
+        
+        if resultado:
+            # Hay firmas para procesar
+            self._procesar_firmas_avanzadas(resultado)
+    
+    def _procesar_firmas_avanzadas(self, firmas):
+        """Procesar las firmas del modal avanzado"""
+        if not firmas:
+            return
+        
+        # Datos del firmante (demo)
+        nombre = "VILLEGAS AGUIRRE Delmi Oscar"
+        motivo = "Soy el autor del documento"
+        
+        self.status_label.config(text="Generando documento firmado...")
+        self.root.update()
+        
+        # Preparar datos para el firmador
+        firmas_data = []
+        for firma in firmas:
+            # Calcular posición exacta para el PDF
+            page = self.firmador.doc[firma["pagina"]]
+            rect = page.rect
+            
+            pdf_x, pdf_y = firma["posicion"]
+            
+            # Usar dimensiones de la imagen del visor principal
+            if self.viewer.firma_imagen:
+                sig_w = rect.width * 0.45
+                sig_h = sig_w * (self.viewer.firma_imagen.height / self.viewer.firma_imagen.width)
+            else:
+                # Fallback: dimensiones por defecto
+                sig_w = rect.width * 0.45
+                sig_h = sig_w * (140 / 720)
+            
+            # La posición (pdf_x, pdf_y) es el CENTRO donde se hizo click
+            x = pdf_x - sig_w / 2
+            y = pdf_y - sig_h / 2
+            
+            # Asegurar que esté dentro de la página
+            x = max(0, min(x, rect.width - sig_w))
+            y = max(0, min(y, rect.height - sig_h))
+            
+            firmas_data.append({
+                "pagina": firma["pagina"],
+                "posicion": (x, y, sig_w, sig_h),
+                "fecha": firma.get("fecha", datetime.now().strftime("%d.%m.%Y %H:%M:%S -05:00"))
+            })
+        
+        # Firmar PDF
+        ok, msg, ruta_firmada = self.firmador.firmar_pdf_multiples_firmas(nombre, motivo, firmas_data)
+        
+        if ok:
+            # Cargar el documento firmado en el visor
+            if ruta_firmada and os.path.exists(ruta_firmada):
+                self.ruta_pdf.set(ruta_firmada)
+                self.viewer.load_pdf(ruta_firmada)
+                self.firmador.abrir_pdf(ruta_firmada)
+                self._update_page_info()
+            
+            self.status_label.config(text=msg)
+            messagebox.showinfo("Éxito", f"Documento firmado:\n{msg}")
+        else:
+            self.status_label.config(text=f"Error: {msg}")
+            messagebox.showerror("Error", msg)
+    
     def firmar_documento(self):
         """Mostrar modal de certificado, y si acepta, generar PDF firmado"""
         if not self.ruta_pdf.get():
@@ -285,11 +361,13 @@ class AplicacionFirma:
             self.status_label.config(text="Firma cancelada - Puede reposicionar la firma y volver a Firmar")
             return
         
-        # Obtener posicion de la firma
+        # Obtener posicion de la firma (x, y, w, h, page_idx)
         pos = self.viewer.get_firma_position_for_pdf()
         if not pos:
             messagebox.showerror("Error", "No se pudo obtener la posicion de la firma")
             return
+        
+        x, y, w, h, page_idx = pos
         
         # Datos del firmante (demo)
         nombre = "VILLEGAS AGUIRRE Delmi Oscar"
@@ -299,7 +377,7 @@ class AplicacionFirma:
         self.status_label.config(text="Generando documento firmado...")
         self.root.update()
         
-        ok, msg = self.firmador.firmar_pdf_con_imagen(nombre, motivo, pos, fecha)
+        ok, msg = self.firmador.firmar_pdf_con_imagen(nombre, motivo, (x, y, w, h), fecha, page_idx)
         
         if ok:
             self.status_label.config(text=msg)
@@ -324,7 +402,8 @@ class AplicacionFirma:
         """Ajustar la pagina para que quepa completa en el visor"""
         if not self.viewer.doc:
             return
-        page = self.viewer.doc[self.viewer.current_page]
+        # En scroll continuo, usar la primera página para calcular zoom
+        page = self.viewer.doc[0]
         cw = max(self.viewer.canvas.winfo_width(), self.viewer.width)
         ch = max(self.viewer.canvas.winfo_height(), self.viewer.height)
         
@@ -357,8 +436,9 @@ class AplicacionFirma:
     
     def _update_page_info(self):
         if self.viewer.doc:
+            # En scroll continuo, mostrar total de páginas
             self.page_label.config(
-                text=f"Pag {self.viewer.current_page + 1}/{self.viewer.total_pages}")
+                text=f"Pag 1/{self.viewer.total_pages}")
     
     def _update_pos_info(self):
         if self.viewer.firma_page_position:

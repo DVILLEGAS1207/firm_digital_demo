@@ -17,6 +17,32 @@ class FirmadorPDF:
         except Exception as e:
             return False, f"Error al abrir: {str(e)}"
     
+    def _detect_y_flip(self):
+        """Detecta si el PDF tiene transformación Y-invertida (común en DOCX→PDF)"""
+        if not self.doc or len(self.doc) == 0:
+            return 0
+        
+        try:
+            page = self.doc[0]
+            contents = page.get_contents()
+            for cxref in contents:
+                stream = self.doc.xref_stream(cxref)
+                if stream:
+                    text = stream.decode('latin-1', errors='replace')
+                    # Buscar patrón "1 0 0 -1 0 H cm" (Y-flip)
+                    import re
+                    match = re.search(r'([\d.]+)\s+0\s+0\s+(-[\d.]+)\s+\d+\s+([\d.]+)\s+cm', text)
+                    if match:
+                        a = float(match.group(1))
+                        d = float(match.group(2))
+                        f = float(match.group(3))
+                        if a == 1.0 and d < 0:
+                            return f
+        except:
+            pass
+        
+        return 0
+    
     def generar_imagen_firma(self, nombre_firmante, motivo, fecha=None):
         """Genera la imagen de firma con logo real y datos del firmante"""
         if fecha is None:
@@ -88,13 +114,16 @@ class FirmadorPDF:
         img_bytes.seek(0)
         return img_bytes.getvalue()
     
-    def firmar_pdf_con_imagen(self, nombre_firmante, motivo, posicion, fecha=None):
+    def firmar_pdf_con_imagen(self, nombre_firmante, motivo, posicion, fecha=None, page_idx=0):
         """Firma el PDF colocando la imagen en la posición especificada"""
         if not self.doc:
             return False, "No hay documento abierto"
         
         try:
-            pagina = self.doc[0]
+            # Usar la página especificada (por defecto la primera)
+            if page_idx < 0 or page_idx >= len(self.doc):
+                page_idx = 0
+            pagina = self.doc[page_idx]
             
             # Generar imagen de firma
             img_data = self.generar_imagen_firma(nombre_firmante, motivo, fecha)
@@ -124,3 +153,60 @@ class FirmadorPDF:
             
         except Exception as e:
             return False, f"Error al firmar: {str(e)}"
+    
+    def firmar_pdf_multiples_firmas(self, nombre_firmante, motivo, firmas, fecha=None):
+        """Firma el PDF con múltiples firmas en diferentes páginas
+        
+        Returns:
+            (bool, str, str): (éxito, mensaje, ruta_archivo_creado)
+        """
+        if not self.doc:
+            return False, "No hay documento abierto", ""
+        
+        try:
+            # Generar imagen de firma una sola vez
+            if fecha is None:
+                fecha = datetime.now().strftime("%d.%m.%Y %H:%M:%S -05:00")
+            img_data = self.generar_imagen_firma(nombre_firmante, motivo, fecha)
+            
+            # Detectar si la página tiene transformación Y-invertida (común en DOCX→PDF)
+            y_flip = self._detect_y_flip()
+            
+            # Insertar firma en cada página especificada
+            for firma in firmas:
+                pagina_num = firma["pagina"]
+                posicion = firma["posicion"]
+                fecha_firma = firma.get("fecha", fecha)
+                
+                if pagina_num < 0 or pagina_num >= len(self.doc):
+                    continue
+                
+                pagina = self.doc[pagina_num]
+                x, y, w, h = posicion
+                
+                # Aplicar Y-flip si el PDF lo requiere
+                if y_flip > 0:
+                    y = y_flip - y - h
+                
+                # Crear rectángulo para la imagen
+                rect = fitz.Rect(x, y, x + w, y + h)
+                
+                # Insertar imagen en la página
+                pagina.insert_image(rect, stream=img_data)
+            
+            # Guardar con nuevo nombre usando nomenclatura [F]
+            base, ext = os.path.splitext(self.ruta_archivo)
+            nueva_ruta = f"{base}[F].pdf"
+            
+            contador = 1
+            while os.path.exists(nueva_ruta):
+                nueva_ruta = f"{base}[F]({contador}).pdf"
+                contador += 1
+            
+            self.doc.save(nueva_ruta)
+            self.doc.close()
+            
+            return True, f"PDF firmado guardado como: {os.path.basename(nueva_ruta)}", nueva_ruta
+            
+        except Exception as e:
+            return False, f"Error al firmar: {str(e)}", ""
